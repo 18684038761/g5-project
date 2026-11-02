@@ -1,0 +1,36 @@
+name: auto-skeleton bridge
+on:
+  issues:
+    types: [labeled]
+
+jobs:
+  bridge:
+    if: github.event.label.name == 'auto-skeleton'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Comment to trigger dsh-superagent
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              per_page: 100
+            });
+            const already = comments.data.some(c =>
+              (c.body || '').includes('<!-- dsh-auto-skeleton-bridge -->'));
+            if (already) {
+              core.info('Bridge comment already exists, skip.');
+              return;
+            }
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `<!-- dsh-auto-skeleton-bridge -->\n` +
+                    `@g5-dsh-agent 请依据本 issue 的需求生成基础代码骨架：` +
+                    `从最新主分支拉工作分支，完成骨架后提交 Draft PR，PR 描述回链本 issue。`
+            });
